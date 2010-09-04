@@ -134,15 +134,17 @@ module Authorization
     end
 
     def load_controller_object (context_without_namespace = nil) # :nodoc:
+      return unless id = params[:id]
       instance_var = :"@#{context_without_namespace.to_s.singularize}"
       model = context_without_namespace.to_s.classify.constantize
-      instance_variable_set(instance_var, model.find(params[:id]))
+      instance_variable_set(instance_var, model.find(id))
     end
 
     def load_parent_controller_object (parent_context_without_namespace) # :nodoc:
+      return unless id = params[:"#{parent_context_without_namespace.to_s.singularize}_id"]
       instance_var = :"@#{parent_context_without_namespace.to_s.singularize}"
       model = parent_context_without_namespace.to_s.classify.constantize
-      instance_variable_set(instance_var, model.find(params[:"#{parent_context_without_namespace.to_s.singularize}_id"]))
+      instance_variable_set(instance_var, model.find(id))
     end
 
     def new_controller_object_from_params (context_without_namespace, parent_context_without_namespace) # :nodoc:
@@ -604,13 +606,13 @@ module Authorization
             (@context ? @context.to_s.classify.constantize : contr.class.controller_name.classify.constantize)
         instance_var = :"@#{load_object_model.name.underscore}"
         object = contr.instance_variable_get(instance_var)
-        unless object
+        if object.nil? && (id = contr.params[:id])
           begin
-            object = load_object_model.find(contr.params[:id])
+            object = load_object_model.find(id)
           rescue RuntimeError => e
             contr.logger.debug("filter_access_to tried to find " +
                 "#{load_object_model} from params[:id] " +
-                "(#{contr.params[:id].inspect}), because attribute_check is enabled " +
+                "(#{id.inspect}), because attribute_check is enabled " +
                 "and #{instance_var.to_s} isn't set, but failed: #{e.class.name}: #{e}")
             raise if AuthorizationInController.failed_auto_loading_is_not_found?
           end
